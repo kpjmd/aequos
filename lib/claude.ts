@@ -188,13 +188,13 @@ async function tryOrthoIQAgents(
     queryType?: string;
   }
 ): Promise<ClaudeResponse | null> {
-  const AGENTS_ENDPOINT = process.env.ORTHOIQ_AGENTS_URL || 'http://localhost:3000';
+  const AGENTS_ENDPOINT = process.env.AEQUOS_AGENTS_URL || process.env.ORTHOIQ_AGENTS_URL || 'http://localhost:3000';
   const mode = options?.mode || 'fast'; // Default to fast mode
   const AGENTS_TIMEOUT = mode === 'fast' ? 100000 : 120000; // 100s for fast, 120s for normal
 
   // Debug: Log the endpoint being used to verify env var is correct
   console.log(`[${requestId || 'unknown'}] [AequOs] AGENTS_ENDPOINT resolved to: ${AGENTS_ENDPOINT}`);
-  console.log(`[${requestId || 'unknown'}] [AequOs] ORTHOIQ_AGENTS_URL env var: ${process.env.ORTHOIQ_AGENTS_URL || 'NOT SET - using default'}`);
+  console.log(`[${requestId || 'unknown'}] [AequOs] AEQUOS_AGENTS_URL env var: ${process.env.AEQUOS_AGENTS_URL || 'NOT SET'}, ORTHOIQ_AGENTS_URL env var: ${process.env.ORTHOIQ_AGENTS_URL || 'NOT SET - using default'}`);
 
   try {
     // Health check first

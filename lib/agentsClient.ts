@@ -15,9 +15,9 @@ type CallerKey = 'web' | 'farcaster' | 'admin';
 
 function getApiKey(caller: CallerKey): string | undefined {
   switch (caller) {
-    case 'web':       return process.env.ORTHOIQ_AGENTS_WEB_KEY;
-    case 'farcaster': return process.env.ORTHOIQ_AGENTS_FARCASTER_KEY;
-    case 'admin':     return process.env.ORTHOIQ_AGENTS_ADMIN_KEY;
+    case 'web':       return process.env.AEQUOS_AGENTS_WEB_KEY || process.env.ORTHOIQ_AGENTS_WEB_KEY;
+    case 'farcaster': return process.env.AEQUOS_AGENTS_FARCASTER_KEY || process.env.ORTHOIQ_AGENTS_FARCASTER_KEY;
+    case 'admin':     return process.env.AEQUOS_AGENTS_ADMIN_KEY || process.env.ORTHOIQ_AGENTS_ADMIN_KEY;
   }
 }
 
@@ -36,11 +36,11 @@ export interface AgentsFetchInit extends Omit<RequestInit, 'headers'> {
  * @param path  Must start with "/" e.g. "/consultation"
  */
 export function agentsFetch(path: string, { caller, jwt, webUserId, ...rest }: AgentsFetchInit): Promise<Response> {
-  const base = process.env.ORTHOIQ_AGENTS_URL ?? 'http://localhost:3000';
+  const base = process.env.AEQUOS_AGENTS_URL ?? process.env.ORTHOIQ_AGENTS_URL ?? 'http://localhost:3000';
   const apiKey = getApiKey(caller);
 
   if (!apiKey) {
-    console.warn(`[agentsClient] ORTHOIQ_AGENTS_${caller.toUpperCase()}_KEY is not set — backend will reject with 401`);
+    console.warn(`[agentsClient] AEQUOS_AGENTS_${caller.toUpperCase()}_KEY / ORTHOIQ_AGENTS_${caller.toUpperCase()}_KEY not set — backend will reject with 401`);
   }
 
   const headers: Record<string, string> = {

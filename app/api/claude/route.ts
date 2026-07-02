@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
         }];
 
         agentRouting = {
-          selectedAgent: 'orthoiq-agents-triage',
+          selectedAgent: 'aequos-triage',
           routingReason: 'fast_mode_triage',
           alternativeAgents: [],
           networkExecuted: true

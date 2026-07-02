@@ -1342,7 +1342,7 @@ export default function WebOrthoInterface({ className = "" }: WebOrthoInterfaceP
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => window.open('https://farcaster.xyz/miniapps/12zkRyhWt8Az/orthoiq---ai-orthopedic-expert', '_blank')}
+                    onClick={() => window.open('https://farcaster.xyz/miniapps/XPiab1fRlKbA/aequos---ai-orthopedic-expert', '_blank')}
                     className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-semibold text-sm shadow-lg"
                   >
                     🔗 Continue in Mini App
@@ -1512,7 +1512,7 @@ export default function WebOrthoInterface({ className = "" }: WebOrthoInterfaceP
           </div>
 
           <button
-            onClick={() => window.open('https://farcaster.xyz/miniapps/12zkRyhWt8Az/orthoiq---ai-orthopedic-expert', '_blank')}
+            onClick={() => window.open('https://farcaster.xyz/miniapps/XPiab1fRlKbA/aequos---ai-orthopedic-expert', '_blank')}
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-bold shadow-lg transform hover:scale-105"
           >
             <span className="mr-2">🚀</span>

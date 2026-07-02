@@ -199,7 +199,7 @@ export class LocalAgentClient extends EventEmitter {
   /**
    * Register a consultation agent specifically for the AequOs Agents API
    */
-  async registerConsultationAgent(endpoint: string = process.env.AEQUOS_AGENTS_URL || process.env.ORTHOIQ_AGENTS_URL || 'http://localhost:3000'): Promise<void> {
+  async registerConsultationAgent(endpoint: string = process.env.AEQUOS_AGENTS_URL || 'http://localhost:3000'): Promise<void> {
     const config: LocalAgentConfig = {
       id: 'aequos-consultation',
       name: 'AequOs Consultation Network',

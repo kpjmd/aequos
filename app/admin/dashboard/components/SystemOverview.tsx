@@ -167,7 +167,7 @@ export function SystemOverview() {
 
         {!metrics.agentStatsAvailable && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-            ⚠️ Agent statistics unavailable. orthoiq-agents backend may be offline.
+            ⚠️ Agent statistics unavailable. aequos-agents backend may be offline.
           </div>
         )}
       </div>

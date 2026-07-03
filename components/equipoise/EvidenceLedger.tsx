@@ -8,7 +8,7 @@ interface EvidenceLedgerProps {
   decision: EquipoiseDecision;
   // Drives the empty-state copy: an empty ledger on a settled (consensus) case
   // is CORRECT — no equipoise-grade evidence exists — not an error.
-  emptyContext?: 'contested' | 'consensus' | 'refer';
+  emptyContext?: 'pending' | 'contested' | 'consensus' | 'refer';
   // True once the persisted (ready) card has been swapped in. Distinguishes a
   // ledger still compiling (skeleton) from one the backend finished with empty.
   final?: boolean;

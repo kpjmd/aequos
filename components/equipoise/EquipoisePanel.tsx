@@ -51,9 +51,13 @@ function ClinicianToggle() {
 export default function EquipoisePanel({ cards, ledgersReady }: EquipoisePanelProps) {
   if (!cards || cards.length === 0) return null;
 
+  // Pending skeletons render as loading slots during the background detection
+  // stage; once the poll swaps in the real cards, none are pending.
+  const isPending = (c: EquipoiseCardType) => c.pending === true || c.status === 'pending';
+  const pending = cards.filter(isPending);
   // Contested first; converged collapse into a compact list.
-  const contested = cards.filter(c => c.status === 'contested');
-  const converged = cards.filter(c => c.status !== 'contested');
+  const contested = cards.filter(c => !isPending(c) && c.status === 'contested');
+  const converged = cards.filter(c => !isPending(c) && c.status !== 'contested');
 
   // Route-to-human: surface the escalation once, at the top.
   const escalation = cards.find(c => c.route?.toHuman)?.route;
@@ -82,10 +86,14 @@ export default function EquipoisePanel({ cards, ledgersReady }: EquipoisePanelPr
 
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold text-gray-900">
-          {contested.length > 0 ? 'Where the decision turns' : 'The panel agrees'}
+          {contested.length > 0 || pending.length > 0 ? 'Where the decision turns' : 'The panel agrees'}
         </h3>
         <ClinicianToggle />
       </div>
+
+      {pending.map((card, i) => (
+        <EquipoiseCard key={`pending-${i}`} card={card} />
+      ))}
 
       {contested.map((card, i) => (
         <EquipoiseCard key={`contested-${i}`} card={card} defaultOpen carePlanAnchorId={anchorForCard(card)} ledgersReady={ledgersReady} />

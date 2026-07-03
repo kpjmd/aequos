@@ -116,27 +116,30 @@ export async function triggerResearchAgents(params: {
 
 /**
  * Server-side fetch of the persisted equipoise cards (with populated evidence
- * ledgers) from Railway. Best-effort: returns { cards: [], ready: false } on
- * 404 / any error, so callers can fall back to the skeleton cards. `ready`
- * mirrors the backend's readiness flag (defaults true when the field is absent).
+ * ledgers) from Railway. Best-effort: returns { cards: [], ready: false,
+ * complete: false } on 404 / any error, so callers can fall back to the
+ * skeleton cards. `complete` mirrors the backend's "background detection
+ * finished" flag (defaults false when absent); `ready` is the legacy readiness
+ * flag kept for back-compat (defaults true when absent).
  */
 export async function fetchEquipoiseCards(
   consultationId: string
-): Promise<{ cards: any[]; ready: boolean }> {
+): Promise<{ cards: any[]; ready: boolean; complete: boolean }> {
   try {
     const res = await agentsFetch(`/consultation/${consultationId}/equipoise-cards`, {
       caller: 'web',
       method: 'GET',
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return { cards: [], ready: false };
+    if (!res.ok) return { cards: [], ready: false, complete: false };
     const data = await res.json();
     const ready = data && typeof data === 'object' && 'ready' in data ? !!data.ready : true;
-    if (Array.isArray(data)) return { cards: data, ready };
-    if (Array.isArray(data?.cards)) return { cards: data.cards, ready };
-    if (Array.isArray(data?.equipoiseCards)) return { cards: data.equipoiseCards, ready };
-    return { cards: [], ready };
+    const complete = data && typeof data === 'object' && 'complete' in data ? !!data.complete : false;
+    if (Array.isArray(data)) return { cards: data, ready, complete };
+    if (Array.isArray(data?.cards)) return { cards: data.cards, ready, complete };
+    if (Array.isArray(data?.equipoiseCards)) return { cards: data.equipoiseCards, ready, complete };
+    return { cards: [], ready, complete };
   } catch {
-    return { cards: [], ready: false };
+    return { cards: [], ready: false, complete: false };
   }
 }

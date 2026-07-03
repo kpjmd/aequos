@@ -587,9 +587,17 @@ export interface EquipoiseTipDirection {
   option: string;
   factors: string[];
 }
+// Archetype-flip axis: a clinical axis whose value flips the favored option
+// across patient archetypes. `modalByArchetype` maps an archetype key
+// (e.g. 'high_demand_low_risk') to the option that archetype favors.
+export interface EquipoiseArchetypeAxis {
+  axis: string; // 'demand_risk' | 'pathology' | 'fracture_pattern' | 'biological_window'
+  modalByArchetype: Record<string, string>; // archetype key → favored option label
+}
 export interface EquipoiseWhatWouldTipIt {
   source: 'archetype_axis' | 'panel_reasoning';
-  toward?: EquipoiseTipDirection[];
+  toward?: EquipoiseTipDirection[]; // legacy panel_reasoning shape
+  axes?: EquipoiseArchetypeAxis[]; // new archetype_axis shape
   [key: string]: unknown;
 }
 
@@ -627,8 +635,12 @@ export interface EquipoiseCarePlanHome {
 
 export interface EquipoiseCard {
   decision: EquipoiseDecision;
-  verdict: 'contested' | 'converged';
-  status: 'contested' | 'consensus' | 'refer';
+  // `null` on a pending skeleton; 'consensus' on a settled archetype-flip card.
+  verdict: 'contested' | 'consensus' | 'converged' | null;
+  // 'pending' while the background archetype-flip detector is still running.
+  status: 'pending' | 'contested' | 'consensus' | 'refer';
+  // True on the skeleton the consult response ships before detection completes.
+  pending?: boolean;
   contestedBy?: string[] | null;
   // Full panel: every lens that took a position (use for "full panel discussion").
   panel?: EquipoisePanelMember[] | null;

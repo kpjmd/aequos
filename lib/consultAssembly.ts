@@ -30,10 +30,13 @@ export async function withPopulatedEquipoiseCards(payload: any, consultationId: 
     const current = payload?.consultation?.equipoiseCards;
     const expected = Array.isArray(current) ? current.length : 0;
     if (expected === 0) return payload;
-    const { cards: populated, ready } = await fetchEquipoiseCards(consultationId);
-    // Only ship the persisted set once the backend says it's ready and complete;
-    // otherwise keep the skeletons rather than emit half-compiled ledgers.
-    if (ready && populated.length >= expected) {
+    const { cards: populated, complete } = await fetchEquipoiseCards(consultationId);
+    // Only swap in the persisted set once background detection reports complete.
+    // No count-match gate: detection can SUPPRESS a decision, so the final count
+    // may be smaller than the skeleton count. This is a single-shot fetch — if
+    // detection is still running (the common case right after the sync response),
+    // we keep the skeletons and let the client poll finish the job.
+    if (complete) {
       payload.consultation.equipoiseCards = populated;
     }
   } catch (e) {

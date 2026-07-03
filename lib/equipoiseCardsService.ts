@@ -38,10 +38,22 @@ async function runPoll(
       if (res.ok) {
         const data = await res.json();
         const cards = extractCards(data);
-        // Honor the backend's own readiness flag when present — don't swap in
-        // cards whose ledgers are still being compiled (ready === false).
+        // Primary stop: the backend's `complete` flag. Background detection can
+        // SUPPRESS a decision, so the final card count may be smaller than the
+        // skeleton count — a count-match gate would poll forever. Stop on
+        // complete regardless of how many cards came back (0 is valid).
+        const complete =
+          data && typeof data === 'object' && 'complete' in data ? !!data.complete : undefined;
+        if (complete === true) {
+          cardCache.set(consultationId, cards);
+          return cards;
+        }
+        // Defensive back-compat: only when the backend hasn't shipped `complete`
+        // yet (field entirely absent) do we fall back to the legacy ready+count
+        // gate. Once `complete` is present this path never fires, so the
+        // poll-forever-on-suppression bug cannot recur.
         const ready = data && typeof data === 'object' && 'ready' in data ? !!data.ready : true;
-        if (ready && expectedCount > 0 && cards.length >= expectedCount) {
+        if (complete === undefined && ready && expectedCount > 0 && cards.length >= expectedCount) {
           cardCache.set(consultationId, cards);
           return cards;
         }
@@ -69,7 +81,7 @@ export function resolveEquipoiseCards(
   const existing = inflight.get(consultationId);
   if (existing) return existing;
 
-  const { intervalMs = 5000, timeoutMs = 60000 } = options;
+  const { intervalMs = 5000, timeoutMs = 180000 } = options;
   const p = runPoll(consultationId, expectedCount, intervalMs, timeoutMs).finally(() => {
     inflight.delete(consultationId);
   });

@@ -27,15 +27,64 @@ function confidencePct(conf: number | undefined): string | null {
   return `${Math.round(conf * 100)}%`;
 }
 
+// Human labels for the clinical axes a contested decision flips across.
+const CONTESTED_AXIS_LABELS: Record<string, string> = {
+  demand_risk: 'Demand vs. risk',
+  pathology: 'Pathology',
+  fracture_pattern: 'Fracture pattern',
+  biological_window: 'Biological window',
+};
+function axisLabel(axis: string): string {
+  return CONTESTED_AXIS_LABELS[axis] || prettifyKey(axis);
+}
+
+// Prettify a snake_case key (axis or archetype) into readable text, e.g.
+// 'high_demand_low_risk' → 'High demand, low risk'.
+function prettifyKey(key: string): string {
+  const words = (key || '').replace(/_/g, ' ').trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : key;
+}
+
 export default function EquipoiseCard({ card, defaultOpen = true, carePlanAnchorId, ledgersReady }: EquipoiseCardProps) {
   const { clinicianView } = useClinicianView();
   const [open, setOpen] = useState(defaultOpen);
   const [showDelta, setShowDelta] = useState(false);
 
+  const pending = card.pending === true || card.status === 'pending';
   const contested = card.status === 'contested';
   const split = card.theSplit || [];
   const delta = card.deliberationDelta;
-  const toward = card.whatWouldTipIt?.toward || [];
+  const contestedBy = card.contestedBy || [];
+  const tip = card.whatWouldTipIt;
+  const axes = tip?.axes || [];
+  const toward = tip?.toward || [];
+
+  // Pending skeleton: the background archetype-flip detector is still running.
+  // Show a loading slot (question + options only) — no verdict/split/ledger yet.
+  if (pending) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-sm">
+        <div className="p-4">
+          <div className="mb-1 flex items-center gap-2">
+            <span className="flex items-center gap-1.5 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-700">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-slate-500" />
+              ⚖️ Analyzing…
+            </span>
+          </div>
+          <h4 className="text-base font-semibold text-gray-900">{card.decision.question}</h4>
+          <p className="mt-1 text-sm text-gray-600">
+            <span className="font-medium text-gray-800">{card.decision.optionA}</span>
+            <span className="mx-2 text-gray-400">vs</span>
+            <span className="font-medium text-gray-800">{card.decision.optionB}</span>
+          </p>
+          <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-500" />
+            Weighing the panel across patient types…
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Verdict-driven styling: golden debate card vs calm trustworthy-negative.
   const shell = contested
@@ -110,24 +159,61 @@ export default function EquipoiseCard({ card, defaultOpen = true, carePlanAnchor
                     </div>
                   ))}
                 </div>
+              ) : contested ? (
+                // No single-room split on the new archetype-flip cards — the
+                // average-patient panel usually agrees; the contest is ACROSS
+                // patient types. Surface the axes that flip the decision.
+                <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-900">
+                  <p>This decision is contested <span className="font-semibold">across patient types</span>, not within the panel.</p>
+                  {contestedBy.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {contestedBy.map((axis, i) => (
+                        <span key={i} className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+                          {axisLabel(axis)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <p className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-sm text-emerald-900">
                   The panel converged with no dissent — there is no genuine clinical debate on this decision.
                 </p>
               )}
 
-              {/* What would tip it — inline on contested cards */}
-              {contested && toward.length > 0 && (
+              {/* What makes this patient-dependent — archetype-flip mapping.
+                  Prefer the new archetype_axis shape; fall back to legacy toward. */}
+              {contested && (axes.length > 0 || toward.length > 0) && (
                 <div className="mt-3 rounded-lg border border-amber-200 bg-amber-100/50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">What would tip it</p>
-                  <div className="mt-1 space-y-1.5">
-                    {toward.map((t, i) => (
-                      <div key={i} className="text-sm text-amber-900">
-                        <span className="font-medium">Toward {t.option}:</span>{' '}
-                        {(t.factors || []).join('; ')}
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                    What makes this patient-dependent
+                  </p>
+                  {axes.length > 0 ? (
+                    <div className="mt-1.5 space-y-2.5">
+                      {axes.map((axis, i) => (
+                        <div key={i}>
+                          <p className="text-xs font-semibold text-amber-800">{axisLabel(axis.axis)}</p>
+                          <div className="mt-0.5 space-y-0.5">
+                            {Object.entries(axis.modalByArchetype || {}).map(([archetype, option], j) => (
+                              <div key={j} className="text-sm text-amber-900">
+                                <span className="font-medium">{prettifyKey(archetype)}:</span>{' '}
+                                {option}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-1 space-y-1.5">
+                      {toward.map((t, i) => (
+                        <div key={i} className="text-sm text-amber-900">
+                          <span className="font-medium">Toward {t.option}:</span>{' '}
+                          {(t.factors || []).join('; ')}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

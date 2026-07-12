@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { EquipoiseInstrumentPanel } from '@/components/stats/EquipoiseInstrumentPanel';
 
 interface AgentLiveStats {
   totalSearches: number;
@@ -58,12 +59,6 @@ interface DivergencePublicStats {
   resolvedCount: number;
 }
 
-interface BenchmarkAccuracy {
-  sensitivity: number | null;
-  specificity: number | null;
-  absoluteIndication: number | null;
-}
-
 interface PublicStats {
   totalConsultations: number;
   averageAgents: number;
@@ -72,7 +67,6 @@ interface PublicStats {
   promisStats: PROMISPublicStats | null;
   queryTypeBreakdown: QueryTypeBreakdown | null;
   divergenceStats: DivergencePublicStats | null;
-  benchmarkAccuracy: BenchmarkAccuracy | null;
 }
 
 export default function PublicStatsPage() {
@@ -113,7 +107,6 @@ export default function PublicStatsPage() {
         } : null,
         queryTypeBreakdown: data?.queryTypeBreakdown || null,
         divergenceStats: data?.divergenceStats || null,
-        benchmarkAccuracy: data?.benchmarkAccuracy || null,
         promisStats: promis ? {
           totalConsultations: promis.totalConsultations || 0,
           baselineCaptureCount: promis.baselineCaptureCount || 0,
@@ -200,38 +193,8 @@ export default function PublicStatsPage() {
       </div>
 
       <div className="max-w-6xl mx-auto p-6 space-y-6">
-        {/* Instrument accuracy — the validated moat */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Validated instrument accuracy</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Calibration of the equipoise detector on a 122-case benchmark
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-center">
-              <div className="text-4xl font-bold text-emerald-700">
-                {stats.benchmarkAccuracy?.sensitivity != null ? stats.benchmarkAccuracy.sensitivity.toFixed(3) : '0.989'}
-              </div>
-              <div className="mt-1 text-sm font-medium text-gray-700">Sensitivity</div>
-              <div className="text-xs text-gray-500">detects genuine equipoise</div>
-            </div>
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-center">
-              <div className="text-4xl font-bold text-emerald-700">
-                {stats.benchmarkAccuracy?.specificity != null ? stats.benchmarkAccuracy.specificity.toFixed(3) : '0.952'}
-              </div>
-              <div className="mt-1 text-sm font-medium text-gray-700">Specificity</div>
-              <div className="text-xs text-gray-500">convergence you can trust</div>
-            </div>
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-center">
-              <div className="text-4xl font-bold text-emerald-700">
-                {stats.benchmarkAccuracy?.absoluteIndication != null ? stats.benchmarkAccuracy.absoluteIndication.toFixed(3) : '1.000'}
-              </div>
-              <div className="mt-1 text-sm font-medium text-gray-700">Absolute indication</div>
-              <div className="text-xs text-gray-500">settled-operative recall</div>
-            </div>
-          </div>
-        </div>
+        {/* Equipoise instrument — the validated moat, sourced live from /equipoise/stats */}
+        <EquipoiseInstrumentPanel />
 
         {/* Network Overview */}
         <div className="bg-white rounded-lg shadow-sm border p-6">

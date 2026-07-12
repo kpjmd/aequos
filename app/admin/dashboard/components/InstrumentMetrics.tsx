@@ -1,21 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { InstrumentViewResult } from '@/lib/database';
-
-interface InstrumentResponse {
-  benchmarkAccuracy: InstrumentViewResult;
-  convergenceByModel: InstrumentViewResult;
-  evidenceCoverage: InstrumentViewResult;
-  detectorMdAgreement: InstrumentViewResult;
-}
-
-const EMPTY: InstrumentViewResult = { available: false, rows: [] };
+import {
+  EquipoiseInstrumentAdminStats,
+  EQUIPOISE_CLASS_LABELS,
+} from '@/lib/equipoiseStats';
 
 function fmt(v: unknown): string {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'number') {
-    // Ratios in [0,1] read best at 3 decimals; counts/ints stay as-is.
     return Number.isInteger(v) ? String(v) : v.toFixed(3);
   }
   return String(v);
@@ -25,21 +18,11 @@ function prettyKey(k: string): string {
   return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// Pull a value whose column name loosely matches any of the given fragments.
-function pick(row: Record<string, unknown> | undefined, ...fragments: string[]): unknown {
-  if (!row) return undefined;
-  const key = Object.keys(row).find(k => fragments.some(f => k.toLowerCase().includes(f)));
-  return key ? row[key] : undefined;
-}
-
-function GenericTable({ view }: { view: InstrumentViewResult }) {
-  if (!view.available) {
-    return <p className="text-sm text-gray-400 italic">View not available in this environment.</p>;
-  }
-  if (view.rows.length === 0) {
+function GenericTable({ rows }: { rows: Array<Record<string, unknown>> }) {
+  if (rows.length === 0) {
     return <p className="text-sm text-gray-400 italic">No rows yet.</p>;
   }
-  const columns = Object.keys(view.rows[0]);
+  const columns = Object.keys(rows[0]);
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
@@ -51,7 +34,7 @@ function GenericTable({ view }: { view: InstrumentViewResult }) {
           </tr>
         </thead>
         <tbody>
-          {view.rows.map((row, i) => (
+          {rows.map((row, i) => (
             <tr key={i} className="border-b last:border-0">
               {columns.map(c => (
                 <td key={c} className="px-3 py-2 text-gray-700">{fmt(row[c])}</td>
@@ -60,40 +43,6 @@ function GenericTable({ view }: { view: InstrumentViewResult }) {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function BenchmarkHeadline({ view }: { view: InstrumentViewResult }) {
-  if (!view.available) {
-    return <p className="text-sm text-gray-400 italic">v_benchmark_accuracy not available in this environment.</p>;
-  }
-  const row = view.rows[0];
-  const sensitivity = pick(row, 'sensitivit');
-  const specificity = pick(row, 'specificit');
-  const absolute = pick(row, 'absolute', 'indication');
-  const haveHeadline = sensitivity !== undefined || specificity !== undefined || absolute !== undefined;
-
-  if (!haveHeadline) {
-    // Unknown shape — fall back to the raw row(s).
-    return <GenericTable view={view} />;
-  }
-
-  const cells = [
-    { label: 'Sensitivity', value: sensitivity, hint: 'detects genuine equipoise' },
-    { label: 'Specificity', value: specificity, hint: 'trustworthy negatives' },
-    { label: 'Absolute indication', value: absolute, hint: 'settled-operative recall' },
-  ];
-
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {cells.map(c => (
-        <div key={c.label} className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
-          <div className="text-3xl font-bold text-emerald-700">{fmt(c.value)}</div>
-          <div className="mt-1 text-sm font-medium text-gray-700">{c.label}</div>
-          <div className="text-xs text-gray-500">{c.hint}</div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -118,17 +67,23 @@ function Section({ title, badge, blurb, children }: { title: string; badge?: str
 }
 
 export function InstrumentMetrics() {
-  const [data, setData] = useState<InstrumentResponse | null>(null);
+  const [data, setData] = useState<EquipoiseInstrumentAdminStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/admin/instrument');
-        if (res.ok && !cancelled) setData(await res.json());
+        const res = await fetch('/api/admin/equipoise-stats');
+        if (res.ok && !cancelled) {
+          setData(await res.json());
+        } else if (!cancelled) {
+          setFailed(true);
+        }
       } catch (error) {
-        console.error('Failed to fetch instrument views:', error);
+        console.error('Failed to fetch equipoise instrument stats:', error);
+        if (!cancelled) setFailed(true);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -153,33 +108,87 @@ export function InstrumentMetrics() {
     );
   }
 
-  const d = data || {
-    benchmarkAccuracy: EMPTY,
-    convergenceByModel: EMPTY,
-    evidenceCoverage: EMPTY,
-    detectorMdAgreement: EMPTY,
-  };
+  if (failed || !data) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <p className="text-sm text-gray-400 italic">Equipoise instrument stats unavailable.</p>
+      </div>
+    );
+  }
+
+  const { operational, detector } = data;
+  const coverage = operational.calibration_coverage;
+  const hasConvergence = 'convergence' in data;
 
   return (
     <div className="space-y-6">
       <Section
-        title="Instrument accuracy"
-        badge="⚖️ The moat"
-        blurb="Validated calibration of the equipoise detector on the 122-case benchmark."
+        title="Gate status"
+        badge={operational.gate_passed ? '✅ PASS' : '❌ FAIL'}
+        blurb={`${operational.model_version} · anchor set ${operational.anchor_set_version} · ${data.generated_at}`}
       >
-        <BenchmarkHeadline view={d.benchmarkAccuracy} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
+            <div className="text-3xl font-bold text-emerald-700">{fmt(operational.achieved_sensitivity)}</div>
+            <div className="mt-1 text-sm font-medium text-gray-700">Achieved sensitivity</div>
+            <div className="text-xs text-gray-500">vs target {detector.target.sensitivity}</div>
+          </div>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
+            <div className="text-3xl font-bold text-emerald-700">{fmt(operational.achieved_specificity)}</div>
+            <div className="mt-1 text-sm font-medium text-gray-700">Achieved specificity</div>
+            <div className="text-xs text-gray-500">vs target {detector.target.specificity}</div>
+          </div>
+        </div>
       </Section>
 
-      <Section title="Convergence over time" blurb="Convergence vs. equipoise broken out by model.">
-        <GenericTable view={d.convergenceByModel} />
+      <Section title="Calibration coverage" blurb={`Status: ${detector.calibration_status}`}>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-700">{coverage.fitted.length}</div>
+            <div className="text-xs text-gray-500">Fitted</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-amber-600">{coverage.degenerate.length}</div>
+            <div className="text-xs text-gray-500">Degenerate</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-400">{coverage.uncalibrated.length}</div>
+            <div className="text-xs text-gray-500">Uncalibrated</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-400">{coverage.skipped.length}</div>
+            <div className="text-xs text-gray-500">Skipped</div>
+          </div>
+        </div>
       </Section>
 
-      <Section title="Evidence coverage / gaps" blurb="Per-decision evidence and population coverage, including panels with no accepted evidence.">
-        <GenericTable view={d.evidenceCoverage} />
+      <Section title="Per-class sensitivity" blurb="Wilson 95% CIs from the anchor-set benchmark.">
+        <GenericTable
+          rows={detector.per_class.map(row => ({
+            class: EQUIPOISE_CLASS_LABELS[row.label] || row.label,
+            sensitivity: row.p,
+            ci_low: row.lo,
+            ci_high: row.hi,
+            n: row.n,
+          }))}
+        />
       </Section>
 
-      <Section title="MD agreement" blurb="Detector verdicts vs. MD adjudication.">
-        <GenericTable view={d.detectorMdAgreement} />
+      <Section title="Convergence" blurb="Live convergence-vs-equipoise distribution from the database.">
+        {hasConvergence && data.convergence ? (
+          <div className="space-y-6">
+            <div>
+              <div className="text-sm font-semibold text-gray-700 mb-2">By model</div>
+              <GenericTable rows={data.convergence.by_model} />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-gray-700 mb-2">Benchmark accuracy</div>
+              <GenericTable rows={data.convergence.benchmark_accuracy} />
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 italic">Convergence: no DB in this environment.</p>
+        )}
       </Section>
     </div>
   );
